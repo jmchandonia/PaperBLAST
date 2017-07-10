@@ -48,7 +48,7 @@ my $cgi=CGI->new;
 my $query = $cgi->param('query') || "";
 $query = ">sequence\n$query";
 my $more_subjectId = $cgi->param('more') || "";
-my $maxPapers = 100000;
+my $maxPapers = 100;
 
 my $dbh = DBI->connect("dbi:SQLite:dbname=$sqldb","","",{ RaiseError => 1 }) || die $DBI::errstr;
 
