@@ -274,6 +274,10 @@ if ($query =~ m/[A-Za-z]/) {
                     # ignore this paper if all snippets were duplicate terms
                     next if $nSkip == scalar(@$snippets) && $nSkip > 0;
                     $nPaperShow++;
+                    if ($nPaperShow > $maxPapers) {
+                      last;
+                      next;
+                    }
                     foreach my $snippet (@$snippets) {
                         my $term = $snippet->{queryTerm};
                         $paperSeen{$paperId}{$term} = 1;
