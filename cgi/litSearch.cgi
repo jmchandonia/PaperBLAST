@@ -373,17 +373,6 @@ if ($query =~ m/[A-Za-z]/) {
         }
     }
 
-    print qq{<script src="http://fit.genomics.lbl.gov/d3js/d3.min.js"></script>
-             <script src="http://fit.genomics.lbl.gov/images/fitblast.js"></script>
-             <H3><A title="Fitness BLAST searches for similarity to bacterial proteins that have mutant phenotypes" HREF="http://fit.genomics.lbl.gov/" NAME="#fitness">Fitness Blast</A></H3>
-             <P><DIV ID="fitblast_short"></DIV></P>
-             <script>
-             var server_root = "http://fit.genomics.lbl.gov/";
-             var seq = "$seq";
-             fitblast_load_short("fitblast_short", server_root, seq);
-             </script>
-    } unless $more_subjectId;
-
     my @pieces = $seq =~ /.{1,60}/g;
     if (! $more_subjectId) {
       print h3("Query Sequence"),
