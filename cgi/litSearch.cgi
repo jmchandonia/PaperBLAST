@@ -46,127 +46,20 @@ die "No such file: $sqldb" unless -e $sqldb;
 
 my $cgi=CGI->new;
 my $query = $cgi->param('query') || "";
+$query = ">sequence\n$query";
 my $more_subjectId = $cgi->param('more') || "";
-my $maxPapers = $more_subjectId ? 10000 : 8;
+my $maxPapers = 100000;
 
 my $dbh = DBI->connect("dbi:SQLite:dbname=$sqldb","","",{ RaiseError => 1 }) || die $DBI::errstr;
 
-my %stats = ();
-open(STATS, "<", "$base/stats") || die "Cannot read $base/stats";
-while(my $line = <STATS>) {
-  chomp $line;
-  my ($key,$value) = split /\t/, $line, -1;
-  $stats{$key} = $value;
-}
-close(STATS) || die "Error reading $base/stats";
-foreach my $key (qw{nSeq nPaper}) {
-  $stats{$key} = commify( $stats{$key} );
-}
-
-my $documentation = <<END
-
-<H3><A NAME="stats">Statistics</A></H3>
-
-The PaperBLAST database links $stats{nSeq} different protein sequences to $stats{nPaper} scientific articles. Searches against EuropePMC were last performed on $stats{date}.
-
-<H3><A NAME="works">How It Works</A></H3>
-
-<P>PaperBLAST builds a database of protein sequences that are linked
-to scientific articles. These links come from automated text searches
-against the articles in <A HREF="http://europepmc.org/">EuropePMC</A>
-and from manually-curated information from <A
-HREF="https://www.ncbi.nlm.nih.gov/gene/about-generif" title="Gene
-Reference into Function (NCBI)">GeneRIF</A>, <A
-HREF="http://www.uniprot.org/">Swiss-Prot</A>, and <A
-HREF="http://ecocyc.org">EcoCyc</A>.  As of March 2017, PaperBLAST
-links over 360,000 different protein sequences to over 700,000
-articles.  Given this database and a protein sequence query,
-PaperBLAST uses <A
-HREF="https://en.wikipedia.org/wiki/BLAST">protein-protein BLAST</A>
-to find similar sequences with E &lt; 0.001.
-
-<P>To build the database, we query EuropePMC with locus tags, with <A
-HREF="https://www.ncbi.nlm.nih.gov/refseq/">RefSeq</A> protein
-identifiers, and with <A HREF="http://www.uniprot.org/">UniProt</A>
-accessions.  We obtain the locus tags from RefSeq or from <A
-HREF="http://www.microbesonline.org/">MicrobesOnline</A>.  We use
-queries of the form "locus_tag AND genus_name" to try to ensure that
-the paper is actually discussing that gene.  Because EuropePMC indexes
-most recent biomedical papers, even if they are not open access, some
-of the links may be to papers that you cannot read or that our
-computers cannot read.  We query each of these identifiers that
-appears in the open access part of EuropePMC, as well as every locus
-tag that appears in the 500 most-referenced genomes, so that a gene
-may appear in the PaperBLAST results even though none of the papers
-that mention it are open access. We also incorporate text mined links
-from EuropePMC that link open access articles to UniProt or RefSeq
-identifiers.  (This yields some additional links because EuropePMC
-uses different heuristics for their text mining than we do.)
-
-<P>For every article that mentions a locus tag, a RefSeq protein
-identifier, or a UniProt accession, we try to select one or two
-snippets of text that refer to the protein. If we cannot get access to
-the full text, we try to select a snippet from the abstract, but
-unfortunately, unique identifiers such as locus tags are rarely
-provided in abstracts.
-
-<P>We also use manually-curated links between protein sequences and
-articles: <UL> <LI>We index proteins from NCBI's RefSeq if a GeneRIF
-entries links the gene to an article in <A
-HREF="http://www.ncbi.nlm.nih.gov/pubmed/">PubMed</A><sup>&reg;</sup>.
-GeneRIF also provides a short summary of the article's claim about the
-protein, which we provide instead of a snippet.  <LI>We index proteins
-from Swiss-Prot (the curated part of UniProt) if the curators
-identified experimental evidence for the protein's function (evidence
-code ECO:0000269).  <LI>We index every protein EcoCyc, a curated
-database of the proteins in <i> Escherichia coli</i> K-12.  </UL> For
-the entries from Swiss-Prot and EcoCyc, we provide a short curated
-description of the protein's function.  Most of these entries also
-link to articles in <A
-HREF="http://www.ncbi.nlm.nih.gov/pubmed/">PubMed</A>.
-
-<P>For more information see the <A HREF="http://biorxiv.org/content/early/2017/05/02/133041">preprint</A> or the
-<A
-HREF="https://github.com/morgannprice/PaperBLAST">code</A>.
-
-<H3><A NAME="secret">Secrets</A></H3>
-
-<P>PaperBLAST cannot provide snippets for many of the papers that are
-published in non-open-access journals. This limitation applies even if
-the paper is marked as "free" on the publisher's web site and is
-available in PubmedCentral or EuropePMC. If a journal that you publish
-in is marked as "secret," please consider publishing elsewhere.
-
-<H3><A NAME="omission">Omissions from the PaperBLAST Database</A></H3>
-
-<P>Some important articles are missing from PaperBLAST, either because
-the article's full text is not in EuropePMC (as for many older
-articles) or because of PaperBLAST's heuristics. If you notice an
-article that characterizes a protein's function but is missing from
-PaperBLAST, please notify the curators at <A
-HREF="http://www.uniprot.org/update">UniProt</A> or add an entry to <A
-HREF="https://www.ncbi.nlm.nih.gov/gene/submit-generif">GeneRIF</A>.
-Entries in either of these databases will eventually be incorporated
-into PaperBLAST.  Note that to add an entry to UniProt, you will need
-find the UniProt identifier for the protein.  If the protein is not
-already in UniProt, you can ask them to create an entry.  To add an
-entry to GeneRIF, you will need an NCBI Gene identifier, but
-unfortunately many prokaryotic proteins in RefSeq do not have
-corresponding Gene identifers.
-
-<center>by <A HREF="http://morgannprice.org/">Morgan Price</A>,
-<A HREF="http://genomics.lbl.gov/">Arkin group</A><BR>
-Lawrence Berkeley National Laboratory
-</center>
-END
-    ;
+my $documentation = "";
 
 my $title = "PaperBLAST";
 # utf-8 because that is the encoding used by EuropePMC
 print
     header(-charset => 'utf-8'),
     start_html($title),
-    qq{<div style="background-color: #40C0CB; display: block; position: absolute; top: 0px; left: -1px; width: 100%; padding: 0.25em; z-index: 400;"><H2 style="margin: 0em;"><A HREF="litSearch.cgi" style="color: gold; font-family: 'Montserrat', sans-serif; font-style:italic; text-shadow: 1px 1px 1px #000000; text-decoration: none;">PaperBLAST &ndash; <small>Find papers about a protein or its homologs</small></A></H2></div><P style="margin: 0em;">&nbsp;</P>\n};
+    qq{<div style="background-color: #40C0CB; display: block; position: absolute; top: 0px; left: -1px; width: 100%; padding: 0.25em; z-index: 400;"><H2 style="margin: 0em;"><SPAN style="color: gold; font-family: 'Montserrat', sans-serif; font-style:italic; text-shadow: 1px 1px 1px #000000; text-decoration: none;">PaperBLAST &ndash; <small>Find papers about a protein or its homologs</small></SPAN></H2></div><P style="margin: 0em;">&nbsp;</P>\n};
 
 my $procId = $$;
 my $timestamp = int (gettimeofday() * 1000);
@@ -259,32 +152,6 @@ if ($query =~ m/[A-Za-z]/) {
     $def = length($seq) . " a.a." if $def eq "";
 }
 
-if (!defined $seq && ! $more_subjectId) {
-    my $exampleId = "3615187";
-    my $refseqId = "WP_012018426.1";
-    print
-        start_form( -name => 'input', -method => 'GET', -action => 'litSearch.cgi'),
-        p(br(),
-          b("Enter a sequence in FASTA or Uniprot format,<BR>or an identifier from UniProt, RefSeq, or MicrobesOnline: "),
-          br(),
-          textarea( -name  => 'query', -value => '', -cols  => 70, -rows  => 10 )),
-        p(submit('Search'), reset()),
-        end_form,
-        p("Or see",
-          a({ -href => "litSearch.cgi?query=VIMSS$exampleId" }, "example results"),
-            "for the putative alcohol dehydrogenase",
-          a({ -href => "https://www.ncbi.nlm.nih.gov/protein/$refseqId",
-                      -style => "color: black;" },
-                    small("$refseqId,") ),
-            "which is actually the regulator",
-            a({ -href => "litSearch.cgi?query=VIMSS$exampleId",
-                -title => "Show PaperBLAST hits" },
-              i("ercA")) . "."),
-          $documentation;
-} else {
-    if ($more_subjectId) {
-      print h3("Full List of Papers Linked to $more_subjectId");
-    } else {
       die "No sequence to searcH" unless $seq;
       my $initial = substr($seq, 0, 10);
       my $seqlen = length($seq);
@@ -298,7 +165,6 @@ if (!defined $seq && ! $more_subjectId) {
         printf("<P><font color='red'>Warning: sequence is %.1f%% nucleotide characters -- are you sure this is a protein query?</font>",
                100 * $fACGTUN);
       }
-    }
 
     autoflush STDOUT 1; # show preliminary results
     print "\n";
@@ -408,12 +274,6 @@ if (!defined $seq && ! $more_subjectId) {
                     # ignore this paper if all snippets were duplicate terms
                     next if $nSkip == scalar(@$snippets) && $nSkip > 0;
                     $nPaperShow++;
-                    if ($nPaperShow > $maxPapers) {
-                      push @content, a({-href => "litSearch.cgi?more=".$subjectId},
-                                       "More");
-                      last;
-                      next;
-                    }
                     foreach my $snippet (@$snippets) {
                         my $term = $snippet->{queryTerm};
                         $paperSeen{$paperId}{$term} = 1;
@@ -529,17 +389,10 @@ if (!defined $seq && ! $more_subjectId) {
       print h3("Query Sequence"),
         p({-style => "font-family: monospace;"}, small(join(br(), ">$def", @pieces))),
       }
-    print h3(a({-href => "litSearch.cgi"}, "New Search")),
-      $documentation,
-        end_html;
-}
 
 sub fail($) {
     my ($notice) = @_;
-    print
-        p($notice),
-        p(a({-href => "litSearch.cgi"}, "New search")),
-        end_html;
+    print ("<ERROR>$notice</ERROR>\n");
     exit(0);
 }
 
@@ -552,9 +405,8 @@ sub simstring($$$$$$$$$$$$$) {
     my $percentCov = sprintf("%.0f", 100 * $cov);
     my $title ="$queryStart:$queryEnd/$qLen of query is similar to $subjectStart:$subjectEnd/$sLen of hit (E = $eVal, $bitscore bits)";
     return "(" .
-        a({ -title => $title,
-            -href => "showAlign.cgi?def1=$def1&def2=$def2&seq1=$seq1&acc2=$acc2" },
-          "$percIdentity% identity, $percentCov% coverage")
+        span({ -title => $title },
+	     "$percIdentity% identity, $percentCov% coverage")
         . ")";
 }
 
@@ -632,69 +484,4 @@ sub SubjectToGene($) {
 
     return $gene;
   }
-}
-
-# Given a locus tag or VIMSSnnnn query, get it in FASTA format
-sub VIMSSToQuery($) {
-  my ($short) = @_;
-  die unless defined $short;
-  my $mo_dbh = DBI->connect('DBI:mysql:genomics:pub.microbesonline.org', "guest", "guest")
-    || die $DBI::errstr;
-  my $locusId;
-  if ($short =~ m/^VIMSS(\d+)$/i) {
-    $locusId = $1;
-  } else {
-    # try to find the locus tag
-    ($locusId) = $mo_dbh->selectrow_array( qq{SELECT locusId FROM Synonym JOIN Locus USING (locusId,version)
-						WHERE name = ? AND priority = 1 },
-                                              {}, $short );
-  }
-  return undef unless $locusId;
-  my ($aaseq) = $mo_dbh->selectrow_array( qq{SELECT sequence FROM Locus JOIN AASeq USING (locusId,version)
-                                             WHERE locusId = ? AND priority=1 },
-                                          {}, $locusId);
-
-  &fail("Sorry, VIMSS$locusId is not a protein in MicrobesOnline") unless defined $aaseq;
-  my ($desc) = $mo_dbh->selectrow_array( qq{SELECT description FROM Locus JOIN Description USING (locusId,version)
-                                             WHERE locusId = ? AND priority=1 },
-                                          {}, $locusId);
-  return ">$short $desc\n$aaseq\n" if $desc;
-  return ">$short\n$aaseq\n" if $desc;
-}
-
-sub RefSeqToQuery($) {
-  my ($short) = @_;
-  die unless defined $short;
-  return undef unless $short =~ m/_/;
-  my $url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.cgi?db=Protein&rettype=fasta&id=$short";
-  my $results = get($url);
-  return $results if $results =~ m/^>/;
-  return undef;
-}
-
-sub UniProtToQuery($) {
-  my ($short) = @_;
-  die unless defined $short;
-  # include=no -- no isoforms
-  my $url = "http://www.uniprot.org/uniprot/?query=${short}&format=fasta&sort=score&include=no&limit=2";
-  my $results = get($url);
-  if ($results =~ m/^>/) {
-    # select the first hit only
-    my @lines = split /\n/, $results;
-    my @out = ();
-    my $nHeader = 0;
-    foreach my $line (@lines) {
-      $nHeader++ if substr($line, 0, 1) eq ">";
-      push @out, $line if $nHeader <= 1;
-    }
-    return join("\n", @out)."\n";
-  }
-  # else
-  return undef;
-}
-
-sub commify($) {
-    local $_  = shift;
-    1 while s/^(-?\d+)(\d{3})/$1,$2/;
-    return $_;
 }
